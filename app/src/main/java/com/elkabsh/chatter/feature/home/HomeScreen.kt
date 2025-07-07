@@ -16,10 +16,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -41,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.elkabsh.chatter.ui.theme.DarkGrey
+import com.elkabsh.chatter.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,18 +58,15 @@ fun HomeScreen(navController: NavController) {
     val sheetState = rememberModalBottomSheetState()
     Scaffold(
         floatingActionButton = {
-            Box(modifier = Modifier
-                .padding(16.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.Blue)
-                .clickable {
-                    addChannel.value = true
-                }) {
-                Text(
-                    text = "Add Channel", modifier = Modifier.padding(16.dp), color = Color.White
-                )
+            FloatingActionButton(
+                onClick = { addChannel.value = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Channel")
             }
-        }, containerColor = Color.Black
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) {
         Box(
             modifier = Modifier
@@ -77,111 +77,126 @@ fun HomeScreen(navController: NavController) {
                 item {
                     Text(
                         text = "Messages",
-                        color = Color.Gray,
-                        style = TextStyle(
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black
+                        color = MaterialTheme.colorScheme.onBackground,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold
                         ),
                         modifier = Modifier.padding(16.dp)
                     )
                 }
 
                 item {
-                    TextField(value = "",
+                    TextField(
+                        value = "",
                         onValueChange = {},
-                        placeholder = { Text(text = "Search...") },
+                        placeholder = {
+                            Text(
+                                text = "Search...",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .clip(
-                                RoundedCornerShape(40.dp)
-                            ),
-                        textStyle = TextStyle(color = Color.LightGray),
-                        colors = TextFieldDefaults.colors().copy(
-                            focusedContainerColor = DarkGrey,
-                            unfocusedContainerColor = DarkGrey,
-                            focusedTextColor = Color.Gray,
-                            unfocusedTextColor = Color.Gray,
-                            focusedPlaceholderColor = Color.Gray,
-                            unfocusedPlaceholderColor = Color.Gray,
-                            focusedIndicatorColor = Color.Gray
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
                         ),
+                        shape = RoundedCornerShape(24.dp),
                         trailingIcon = {
                             Icon(
-                                imageVector = Icons.Filled.Search, contentDescription = null
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        })
+                        }
+                    )
                 }
 
                 items(channels.value) { channel ->
-                    Column {
-                        ChannelItem(
-                            channelName = channel.name,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                            false,
-                            onClick = {
-                                navController.navigate("chat/${channel.id}&${channel.name}")
-                            }
-                        )
-                    }
+                    ChannelItem(
+                        channelName = channel.name,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        onClick = {
+                            navController.navigate("chat/${channel.id}&${channel.name}")
+                        }
+                    )
                 }
             }
         }
     }
 
     if (addChannel.value) {
-        ModalBottomSheet(onDismissRequest = { addChannel.value = false }, sheetState = sheetState) {
+        ModalBottomSheet(
+            onDismissRequest = { addChannel.value = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
             AddChannelDialog {
                 viewModel.addChannel(it)
                 addChannel.value = false
             }
         }
     }
-
 }
-
 
 @Composable
 fun ChannelItem(
     channelName: String,
     modifier: Modifier,
-    shouldShowCallButtons: Boolean = false,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(DarkGrey)
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
-                .align(Alignment.CenterStart)
                 .fillMaxWidth()
-                .clickable {
-                    onClick()
-                },
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .padding(8.dp)
-                    .size(70.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
-                    .background(Color.Yellow.copy(alpha = 0.3f))
-
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
             ) {
                 Text(
-                    text = channelName[0].uppercase(),
-                    color = Color.White,
-                    style = TextStyle(fontSize = 35.sp),
+                    text = channelName.firstOrNull()?.uppercase() ?: "#",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
 
+            Spacer(modifier = Modifier.padding(8.dp))
 
-            Text(text = channelName, modifier = Modifier.padding(8.dp), color = Color.White)
+            Column {
+                Text(
+                    text = channelName,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+                Text(
+                    text = "Tap to open channel",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -192,18 +207,50 @@ fun AddChannelDialog(onAddChannel: (String) -> Unit) {
         mutableStateOf("")
     }
     Column(
-        modifier = Modifier.padding(8.dp),
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        modifier = Modifier
+            .padding(24.dp)
+            .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "Add Channel")
-        Spacer(modifier = Modifier.padding(8.dp))
-        TextField(value = channelName.value, onValueChange = {
-            channelName.value = it
-        }, label = { Text(text = "Channel Name") }, singleLine = true)
-        Spacer(modifier = Modifier.padding(8.dp))
-        Button(onClick = { onAddChannel(channelName.value) }, modifier = Modifier.fillMaxWidth()) {
-            Text(text = "Add")
+        Text(
+            text = "Add New Channel",
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.padding(16.dp))
+
+        TextField(
+            value = channelName.value,
+            onValueChange = { channelName.value = it },
+            label = { Text("Channel Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.padding(16.dp))
+
+        Button(
+            onClick = {
+                if (channelName.value.isNotBlank()) {
+                    onAddChannel(channelName.value)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = channelName.value.isNotBlank()
+        ) {
+            Text("Create Channel")
         }
+
+        Spacer(modifier = Modifier.padding(16.dp))
     }
 }
