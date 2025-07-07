@@ -38,7 +38,7 @@ import androidx.navigation.compose.rememberNavController
 import com.elkabsh.chatter.R
 
 @Composable
-fun SignInScreen(navController: NavController) {
+fun LoginScreen(navController: NavController) {
 
     val viewModel: LoginViewModel = hiltViewModel()
     val uiState = viewModel.state.collectAsState()
@@ -122,5 +122,5 @@ fun SignInScreen(navController: NavController) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewSignInScreen() {
-    SignInScreen(navController = rememberNavController())
+    LoginScreen(navController = rememberNavController())
 }
