@@ -1,26 +1,33 @@
 package com.elkabsh.chatter.feature.chat
 
+import android.Manifest
+import android.net.Uri
+import android.os.Environment
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -30,30 +37,85 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.elkabsh.chatter.R
+import com.elkabsh.chatter.feature.home.ChannelItem
 import com.elkabsh.chatter.feature.model.Message
-import com.elkabsh.chatter.ui.theme.*
+import com.elkabsh.chatter.ui.theme.DarkGrey
+import com.elkabsh.chatter.ui.theme.Purple
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
-fun ChatScreen(navController: NavController, channelId: String) {
+fun ChatScreen(navController: NavController, channelId: String, channelName: String) {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = Color.Black
     ) {
+        val viewModel: ChatViewModel = hiltViewModel()
+        val chooserDialog = remember {
+            mutableStateOf(false)
+        }
+
+        val cameraImageUri = remember {
+            mutableStateOf<Uri?>(null)
+        }
+
+        val cameraImageLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicture()
+        ) { success ->
+            if (success) {
+                cameraImageUri.value?.let {
+                    viewModel.sendImageMessage(it, channelId)
+                }
+            }
+        }
+
+        val imageLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let { viewModel.sendImageMessage(it, channelId) }
+        }
+
+
+        fun createImageUri(): Uri {
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val storageDir = ContextCompat.getExternalFilesDirs(
+                navController.context, Environment.DIRECTORY_PICTURES
+            ).first()
+            return FileProvider.getUriForFile(navController.context,
+                "${navController.context.packageName}.provider",
+                File.createTempFile("JPEG_${timeStamp}_", ".jpg", storageDir).apply {
+                    cameraImageUri.value = Uri.fromFile(this)
+                })
+        }
+
+        val permissionLauncher =
+            rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (isGranted) {
+                    cameraImageLauncher.launch(createImageUri())
+                }
+            }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(it)
         ) {
-            val viewModel: ChatViewModel = hiltViewModel()
             LaunchedEffect(key1 = true) {
                 viewModel.listenForMessages(channelId)
             }
@@ -62,91 +124,120 @@ fun ChatScreen(navController: NavController, channelId: String) {
                 messages = messages.value,
                 onSendMessage = { message ->
                     viewModel.sendMessage(channelId, message)
+                },
+                onImageClicked = {
+                    chooserDialog.value = true
+                },
+                channelName = channelName,
+            )
+        }
+
+        if (chooserDialog.value) {
+            ContentSelectionDialog(onCameraSelected = {
+                chooserDialog.value = false
+                if (navController.context.checkSelfPermission(Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    cameraImageLauncher.launch(createImageUri())
+                } else {
+                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            }, onGallerySelected = {
+                chooserDialog.value = false
+                imageLauncher.launch("image/*")
+            },
+                onDismiss = {
+                    chooserDialog.value = false
                 }
             )
         }
     }
+}
 
+
+@Composable
+fun ContentSelectionDialog(
+    onCameraSelected: () -> Unit,
+    onGallerySelected: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onCameraSelected) {
+                Text(text = "Camera")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onGallerySelected) {
+                Text(text = "Gallery")
+            }
+        },
+        title = { Text(text = "Select your source?") },
+        text = { Text(text = "Would you like to pick an image from the gallery or use the") })
 }
 
 @Composable
 fun ChatMessages(
+    channelName: String,
     messages: List<Message>,
     onSendMessage: (String) -> Unit,
+    onImageClicked: () -> Unit,
 ) {
     val hideKeyboardController = LocalSoftwareKeyboardController.current
 
     val msg = remember {
         mutableStateOf("")
     }
-
-    Box(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Bottom
+    ) {
+        ChannelItem(channelName=channelName)
+        Spacer(modifier = Modifier.weight(1f))
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.padding(vertical = 8.dp)
         ) {
             items(messages) { message ->
                 ChatBubble(message = message)
             }
         }
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(8.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .background(DarkGrey)
+                .padding(8.dp), verticalAlignment = Alignment.CenterVertically
         ) {
+            IconButton(onClick = {
+                msg.value = ""
+                onImageClicked()
+            }) {
+                Image(
+                    painter = painterResource(id = R.drawable.attach), contentDescription = "send"
+                )
+            }
+
             TextField(
                 value = msg.value,
                 onValueChange = { msg.value = it },
                 modifier = Modifier.weight(1f),
-                placeholder = {
-                    Text(
-                        text = "Type a message...",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                ),
-                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = {
-                    if (msg.value.isNotBlank()) {
-                        onSendMessage(msg.value)
-                        msg.value = ""
-                    }
+                placeholder = { Text(text = "Type a message") },
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
                     hideKeyboardController?.hide()
-                })
-            )
-
-            IconButton(
-                onClick = {
-                    if (msg.value.isNotBlank()) {
-                        onSendMessage(msg.value)
-                        msg.value = ""
-                    }
-                },
-                enabled = msg.value.isNotBlank()
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Send message",
-                    tint = if (msg.value.isNotBlank())
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                }),
+                colors = TextFieldDefaults.colors().copy(
+                    focusedContainerColor = DarkGrey,
+                    unfocusedContainerColor = DarkGrey,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedPlaceholderColor = Color.White,
+                    unfocusedPlaceholderColor = Color.White
                 )
+            )
+            IconButton(onClick = {
+                onSendMessage(msg.value)
+                msg.value = ""
+            }) {
+                Image(painter = painterResource(id = R.drawable.send), contentDescription = "send")
             }
         }
     }
@@ -155,42 +246,56 @@ fun ChatMessages(
 @Composable
 fun ChatBubble(message: Message) {
     val isCurrentUser = message.senderId == Firebase.auth.currentUser?.uid
-
+    val bubbleColor = if (isCurrentUser) {
+        Purple
+    } else {
+        DarkGrey
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp, horizontal = 16.dp)
-    ) {
-        val alignment = if (isCurrentUser) Alignment.CenterEnd else Alignment.CenterStart
+            .padding(vertical = 4.dp, horizontal = 8.dp)
 
-        Box(
+    ) {
+        val alignment = if (!isCurrentUser) Alignment.CenterStart else Alignment.CenterEnd
+        Row(
             modifier = Modifier
-                .widthIn(max = 280.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 20.dp,
-                        topEnd = 20.dp,
-                        bottomStart = if (isCurrentUser) 20.dp else 4.dp,
-                        bottomEnd = if (isCurrentUser) 4.dp else 20.dp
-                    )
-                )
-                .background(
-                    color = if (isCurrentUser)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant
-                )
-                .align(alignment)
+                .padding(8.dp)
+                .align(alignment),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = message.message,
-                color = if (isCurrentUser)
-                    MaterialTheme.colorScheme.onPrimary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(12.dp),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            if (!isCurrentUser) {
+                Image(
+                    painter = painterResource(id = R.drawable.friend),
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = bubbleColor, shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(vertical = 4.dp, horizontal = 12.dp)
+            ) {
+                if (message.imageUrl != null) {
+                    AsyncImage(
+                        model = message.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(200.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = message.message?.trim() ?: "",
+                        color = Color.White,
+                        fontSize = 20.sp
+                    )
+                }
+            }
+
         }
+
     }
 }

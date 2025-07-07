@@ -121,7 +121,6 @@ fun HomeScreen(navController: NavController) {
                 items(channels.value) { channel ->
                     ChannelItem(
                         channelName = channel.name,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         onClick = {
                             navController.navigate("chat/${channel.id}&${channel.name}")
                         }
@@ -148,11 +147,12 @@ fun HomeScreen(navController: NavController) {
 @Composable
 fun ChannelItem(
     channelName: String,
-    modifier: Modifier,
-    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit={},
 ) {
     Box(
         modifier = modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
@@ -188,7 +188,8 @@ fun ChannelItem(
                     text = channelName,
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp
                     )
                 )
                 Text(

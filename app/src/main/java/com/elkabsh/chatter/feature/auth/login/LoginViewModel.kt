@@ -17,6 +17,7 @@ class LoginViewModel @Inject constructor() : ViewModel() {
         FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password)
             .addOnSuccessListener {
                 _state.value = LoginUiState.Success
+
             }
             .addOnFailureListener {
                 _state.value = LoginUiState.Error
